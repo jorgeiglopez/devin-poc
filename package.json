@@ -1,0 +1,16 @@
+{
+  "name": "devin-event-driven-system",
+  "version": "0.1.0",
+  "description": "POC: polls GitHub issues labeled 'devin' and dispatches them to Devin, which raises a PR for human approval",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "fastify": "^5.2.0"
+  }
+}
