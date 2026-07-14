@@ -25,8 +25,7 @@ export async function dispatchNewIssues(config, state, log) {
   for (const issue of issues) {
     if (state[issue.number]) continue;
     try {
-      const session = { session_id: '123456789', name: 'Test Devin session'}
-      // const session = await createSession(config, buildPrompt(config, issue));
+      const session = await createSession(config, buildPrompt(config, issue));
       const url = sessionUrl(session.session_id);
       state[issue.number] = {
         sessionId: session.session_id,
