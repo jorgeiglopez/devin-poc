@@ -2,7 +2,8 @@ import { listLabeledIssues, commentOnIssue } from './github.js';
 import { createSession, getSession, getMessages, sessionUrl } from './devin.js';
 import { saveState } from './state.js';
 
-const TERMINAL_STATUSES = new Set(['finished', 'blocked', 'stopped', 'expired', 'exited']);
+// Real v3 sessions end as "suspended" (status_detail: "inactivity") after finishing their work.
+const TERMINAL_STATUSES = new Set(['finished', 'suspended', 'blocked', 'stopped', 'expired', 'exited']);
 
 function buildPrompt(config, issue) {
   return [
@@ -29,7 +30,9 @@ export async function dispatchNewIssues(config, state, log) {
       const url = sessionUrl(session.session_id);
       state[issue.number] = {
         sessionId: session.session_id,
+        issueTitle: issue.title,
         status: 'working',
+        dispatchedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       await saveState(config.stateFile, state);
@@ -46,7 +49,8 @@ export async function dispatchNewIssues(config, state, log) {
 }
 
 function findPrUrl(config, session, messages) {
-  if (session.pull_request?.url) return session.pull_request.url;
+  const fromApi = session.pull_requests?.find((pr) => pr.pr_url)?.pr_url;
+  if (fromApi) return fromApi;
   const pattern = new RegExp(`https://github\\.com/${config.githubRepo}/pull/\\d+`);
   for (const msg of [...messages].reverse()) {
     const match = msg.message?.match(pattern);
@@ -70,9 +74,11 @@ export async function trackSessions(config, state, log) {
       const prUrl = findPrUrl(config, session, messages);
       const lastDevinMessage = [...messages].reverse().find((m) => m.source === 'devin')?.message;
 
-      entry.status = status === 'finished' ? 'done' : 'failed';
+      // A session that produced a PR did its job, whatever status it idled out with.
+      entry.status = status === 'finished' || prUrl ? 'done' : 'failed';
       entry.sessionStatus = status;
       if (prUrl) entry.prUrl = prUrl;
+      if (session.acus_consumed != null) entry.acusConsumed = session.acus_consumed;
       entry.updatedAt = new Date().toISOString();
       await saveState(config.stateFile, state);
 
